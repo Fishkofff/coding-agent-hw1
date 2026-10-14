@@ -1,0 +1,2 @@
+# Агент работает на стандартной библиотеке Python 3.10+, внешних зависимостей нет.
+# Тесты написаны на unittest (stdlib). pytest — по желанию: pip install -r requirements-dev.txt

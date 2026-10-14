@@ -1,0 +1,181 @@
+{
+  "description": "Детерминированный сценарий модели для демо Plan Mode и задач без LLM. Каждый элемент steps — один ответ модели.",
+  "steps": [
+    {
+      "content": "Изучаю проект (Plan Mode: только чтение).",
+      "tool_calls": [
+        {
+          "id": "plan_read_order",
+          "name": "read_file",
+          "arguments": {
+            "path": "order.py"
+          }
+        },
+        {
+          "id": "plan_read_test",
+          "name": "read_file",
+          "arguments": {
+            "path": "test_order.py"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Отправляю план.",
+      "tool_calls": [
+        {
+          "id": "plan_submit",
+          "name": "submit_plan",
+          "arguments": {
+            "goal": "Исправить calculate_total так, чтобы тесты проходили, не меняя test_order.py",
+            "steps": [
+              {
+                "id": "T1",
+                "description": "Перечитать order.py и выяснить ожидаемое поведение",
+                "depends_on": [],
+                "tools": [
+                  "read_file"
+                ],
+                "checks": [
+                  {
+                    "type": "file_read",
+                    "path": "order.py"
+                  }
+                ]
+              },
+              {
+                "id": "T2",
+                "description": "Исправить order.py: скидка в процентах, ValueError вне 0..100",
+                "depends_on": [
+                  "T1"
+                ],
+                "tools": [
+                  "write_file"
+                ],
+                "checks": [
+                  {
+                    "type": "file_changed",
+                    "path": "order.py"
+                  },
+                  {
+                    "type": "file_contains",
+                    "path": "order.py",
+                    "text": "ValueError"
+                  },
+                  {
+                    "type": "file_unchanged",
+                    "path": "test_order.py"
+                  }
+                ]
+              },
+              {
+                "id": "T3",
+                "description": "Запустить тесты и убедиться, что они проходят",
+                "depends_on": [
+                  "T2"
+                ],
+                "tools": [
+                  "Bash"
+                ],
+                "checks": [
+                  {
+                    "type": "command_succeeded",
+                    "command": "python3 -m unittest -v"
+                  },
+                  {
+                    "type": "file_unchanged",
+                    "path": "test_order.py"
+                  }
+                ]
+              }
+            ],
+            "risks": [
+              "Сравнение float в тесте через assertEqual: формула должна давать ровно 135"
+            ],
+            "assumptions": [
+              "discount_percent задаётся в процентах 0..100 включительно"
+            ],
+            "done_criteria": "python3 -m unittest -v завершается с кодом 0, test_order.py не изменён"
+          }
+        }
+      ]
+    },
+    {
+      "content": "T1: читаю order.py.",
+      "tool_calls": [
+        {
+          "id": "exec_read_order",
+          "name": "read_file",
+          "arguments": {
+            "path": "order.py"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "id": "exec_done_t1",
+          "name": "complete_task",
+          "arguments": {
+            "task_id": "T1",
+            "summary": "Код прочитан"
+          }
+        }
+      ]
+    },
+    {
+      "content": "T2: исправляю расчёт.",
+      "tool_calls": [
+        {
+          "id": "exec_write_order",
+          "name": "write_file",
+          "arguments": {
+            "path": "order.py",
+            "content": "def calculate_total(prices: list[float], discount_percent: float) -> float:\n    if not 0 <= discount_percent <= 100:\n        raise ValueError(\"discount_percent must be between 0 and 100\")\n    return sum(prices) * (100 - discount_percent) / 100\n"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "id": "exec_done_t2",
+          "name": "complete_task",
+          "arguments": {
+            "task_id": "T2",
+            "summary": "order.py исправлен"
+          }
+        }
+      ]
+    },
+    {
+      "content": "T3: запускаю тесты.",
+      "tool_calls": [
+        {
+          "id": "exec_tests",
+          "name": "Bash",
+          "arguments": {
+            "command": "python3 -m unittest -v",
+            "cwd": "."
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "id": "exec_done_t3",
+          "name": "complete_task",
+          "arguments": {
+            "task_id": "T3",
+            "summary": "Тесты проходят"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Готово: все три задачи подтверждены runtime, тесты проходят, test_order.py не изменён."
+    }
+  ]
+}

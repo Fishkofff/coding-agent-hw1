@@ -1,0 +1,65 @@
+{
+  "description": "Детерминированный сценарий модели для демо без LLM (режим --no-plan). Каждый элемент steps — один ответ модели.",
+  "steps": [
+    {
+      "content": "Посмотрю, какие файлы есть в проекте.",
+      "tool_calls": [
+        {
+          "id": "call_list",
+          "name": "list_files",
+          "arguments": {
+            "path": "."
+          }
+        }
+      ]
+    },
+    {
+      "content": "Прочитаю код и тесты (два вызова в одном ответе).",
+      "tool_calls": [
+        {
+          "id": "call_read_order",
+          "name": "read_file",
+          "arguments": {
+            "path": "order.py"
+          }
+        },
+        {
+          "id": "call_read_test",
+          "name": "read_file",
+          "arguments": {
+            "path": "test_order.py"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Скидка задана в процентах, а вычитается как абсолютная сумма; нет проверки диапазона. Исправляю order.py.",
+      "tool_calls": [
+        {
+          "id": "call_write_order",
+          "name": "write_file",
+          "arguments": {
+            "path": "order.py",
+            "content": "def calculate_total(prices: list[float], discount_percent: float) -> float:\n    if not 0 <= discount_percent <= 100:\n        raise ValueError(\"discount_percent must be between 0 and 100\")\n    return sum(prices) * (100 - discount_percent) / 100\n"
+          }
+        }
+      ]
+    },
+    {
+      "content": "Запускаю тесты.",
+      "tool_calls": [
+        {
+          "id": "call_tests",
+          "name": "Bash",
+          "arguments": {
+            "command": "python3 -m unittest -v",
+            "cwd": "."
+          }
+        }
+      ]
+    },
+    {
+      "content": "Готово: calculate_total теперь применяет скидку в процентах и бросает ValueError для скидки вне 0..100. Тесты проходят, test_order.py не менялся."
+    }
+  ]
+}

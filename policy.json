@@ -1,0 +1,47 @@
+{
+  "description": "Policy агента. Пути считаются от каталога этого файла. Запрет сильнее разрешения; всё, что явно не разрешено, запрещено. Файл лежит вне workspace, инструменты агента не могут его изменить.",
+  "workspace": "workspace",
+  "runs_dir": ".agent_runs",
+  "commands": {
+    "allow": [
+      "python3 -m unittest -v",
+      "python3 -m unittest",
+      "python3 -m unittest test_order -v",
+      "ls",
+      "ls -la",
+      "pwd"
+    ],
+    "deny": [
+      "rm",
+      "sudo",
+      "curl",
+      "wget",
+      "git push",
+      "bash -c",
+      "sh -c",
+      "python3 -c",
+      "pip install"
+    ]
+  },
+  "directories": {
+    "allow": ["workspace"],
+    "deny": ["workspace/private", "workspace/.git"]
+  },
+  "bash": {
+    "timeout_sec": 30,
+    "max_output_bytes": 20000
+  },
+  "files": {
+    "max_read_bytes": 100000,
+    "max_write_bytes": 200000
+  },
+  "journal": {
+    "exclude": ["__pycache__", "*.pyc", ".pytest_cache", ".DS_Store"]
+  },
+  "budget": {
+    "model_calls": 40,
+    "tool_calls": 80,
+    "side_effects": 20,
+    "result_bytes": 300000
+  }
+}

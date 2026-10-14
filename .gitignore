@@ -1,0 +1,18 @@
+# состояние запусков агента (run_id, снимки, журналы) — локальное
+.agent_runs/
+
+# секреты
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store
