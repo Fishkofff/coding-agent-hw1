@@ -1,11 +1,3 @@
-"""Клиенты модели.
-
-OpenAICompatibleModel — HTTP-клиент к любому OpenAI-compatible Chat Completions API
-(Ollama, OpenRouter, Groq, Gemini и т.п.), только stdlib.
-ScriptedModel — детерминированная «модель» для тестов и демо без сети: отдаёт заранее
-заданные ответы. Номер ответа = число assistant-сообщений в истории, поэтому после
-перезапуска процесса сценарий продолжается с нужного места.
-"""
 from __future__ import annotations
 
 import json
