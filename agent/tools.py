@@ -27,9 +27,9 @@ class ToolSpec:
     name: str
     description: str
     parameters: dict
-    effect: str          # read | write | delete | exec | control
-    retryable: bool      # можно ли повторить вызов, исход которого неизвестен после сбоя
-    phases: frozenset    # в каких фазах запуска инструмент доступен
+    effect: str
+    retryable: bool
+    phases: frozenset
 
     @property
     def side_effect(self) -> bool:
@@ -57,7 +57,6 @@ BASH = ToolSpec(
         "cwd": {"type": "string", "minLength": 1,
                 "description": "Working directory relative to the workspace root; '.' is the root"},
     }, ["command", "cwd"]),
-    # Не повторяем: произвольная команда может быть неидемпотентной (дописать в файл, сходить в сеть).
     effect="exec", retryable=False, phases=frozenset({EXECUTION}),
 )
 LIST_FILES = ToolSpec(
@@ -84,7 +83,6 @@ DELETE_FILE = ToolSpec(
     name="delete_file",
     description="Delete a file in the workspace. Always requires user confirmation.",
     parameters=_object({"path": _PATH}, ["path"]),
-    # Идемпотентен: «файла нет» — одинаковый итог после первой и повторной попытки.
     effect="delete", retryable=True, phases=frozenset({EXECUTION}),
 )
 SUBMIT_PLAN = ToolSpec(
@@ -119,10 +117,9 @@ def offered_tools(phase: str, has_tasks: bool) -> list[ToolSpec]:
     return tools
 
 
-# ---------------------------------------------------------------------------------- исполнитель
 class ToolExecutor:
     def __init__(self):
-        self.executions: list[tuple[str, dict]] = []   # что реально исполнялось (для тестов и отладки)
+        self.executions: list[tuple[str, dict]] = []
 
     def execute(self, call: CheckedCall, policy: Policy, allowance: int) -> dict:
         """allowance — доступный остаток result_bytes: инструмент не собирает вывод сверх него."""
@@ -212,7 +209,6 @@ def _excluded(name: str, policy: Policy) -> bool:
     return any(fnmatch(name, pattern) for pattern in policy.journal_exclude)
 
 
-# ---------------------------------------------------------------------------------- Bash
 def _bash_env() -> dict:
     """Минимальное окружение: секреты агента (OPENAI_API_KEY и т.п.) в дочерний процесс не попадают."""
     return {
@@ -220,7 +216,7 @@ def _bash_env() -> dict:
         "HOME": os.environ.get("HOME", "/tmp"),
         "LANG": os.environ.get("LANG", "C.UTF-8"),
         "TERM": "dumb",
-        "PYTHONDONTWRITEBYTECODE": "1",   # тесты не создают __pycache__ в workspace
+        "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONIOENCODING": "utf-8",
     }
 
@@ -275,7 +271,7 @@ def run_bash(command: str, cwd: Path, timeout: float, cap: int) -> dict:
     except subprocess.TimeoutExpired:
         timed_out = True
         try:
-            os.killpg(proc.pid, signal.SIGKILL)   # убиваем всю группу процессов
+            os.killpg(proc.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
         proc.wait()

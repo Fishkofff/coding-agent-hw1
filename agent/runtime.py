@@ -65,7 +65,7 @@ class AgentRuntime:
     def __init__(self, policy_path, model=None, *, reporter: Reporter | None = None,
                  faults: Faults | None = None, executor: ToolExecutor | None = None):
         self.engine = PolicyEngine(policy_path)
-        policy = self.engine.load()            # некорректный policy -> PolicyError сразу
+        policy = self.engine.load()
         self.store = RunStore(policy.runs_dir)
         self.model = model
         self.out = reporter or Reporter()
@@ -73,7 +73,6 @@ class AgentRuntime:
         self.executor = executor or ToolExecutor()
         self.state: dict | None = None
 
-    # ================================================================== создание и цикл
     def start(self, task: str, *, mode: str = "safe", plan_mode: bool = True,
               budget: dict | None = None, model_info: dict | None = None) -> str:
         if mode not in MODES:
@@ -92,9 +91,9 @@ class AgentRuntime:
                 {"role": "system", "content": prompts.system_prompt(policy, mode)},
                 {"role": "user", "content": prompts.initial_user_message(task, plan_mode)},
             ],
-            "batch": None,                 # текущий ответ модели с tool calls, ещё не обработанный до конца
-            "planning_calls": {},          # вызовы фазы планирования (без task_id)
-            "execution_calls": {},         # вызовы фазы исполнения (с task_id текущей задачи)
+            "batch": None,
+            "planning_calls": {},
+            "execution_calls": {},
             "budget": Budget.initial(limits),
             "plan": None, "plan_history": [], "tasks": [], "current_task": None,
             "final_requested": False, "nudges": 0,
@@ -143,7 +142,6 @@ class AgentRuntime:
             return self.state["status"]
         return self.drive()
 
-    # ================================================================== внутреннее
     def _save(self) -> None:
         self.state["updated_at"] = now_iso()
         self.store.save(self.state)
@@ -210,7 +208,6 @@ class AgentRuntime:
         if changed:
             self._save()
 
-    # ================================================================== ход модели
     def _model_turn(self) -> None:
         st = self.state
         if st["phase"] == EXECUTION and st["tasks"]:
@@ -227,7 +224,7 @@ class AgentRuntime:
             self._fail("budget_exhausted", "model_calls limit reached: " + budget.summary())
             return
         budget.charge("model_calls", 1)
-        self._save()                                        # списание сохранено ДО запроса
+        self._save()
         self.faults.hit("after_model_charge")
         tools = [spec.to_openai() for spec in offered_tools(st["phase"], bool(st["tasks"]))]
         try:
@@ -245,7 +242,7 @@ class AgentRuntime:
         else:
             st["messages"].append({"role": "assistant", "content": response.content or ""})
             self._on_text_answer(response.content or "")
-        self._save()                                        # ответ модели + записи вызовов + списание tool_calls
+        self._save()
 
     def _register_batch(self, response) -> None:
         """Регистрирует все tool calls ответа. Бюджет пачки: всё или ничего."""
@@ -254,7 +251,7 @@ class AgentRuntime:
         task_id = st["current_task"] if phase == EXECUTION else None
         items, wire_calls, new_records, seen = [], [], [], set()
         for index, call in enumerate(response.tool_calls):
-            call_id = call.id or f"rt-{len(st['messages'])}-{index}"   # если сервер не прислал id
+            call_id = call.id or f"rt-{len(st['messages'])}-{index}"
             wire_calls.append({"id": call_id, "type": "function",
                                "function": {"name": call.name, "arguments": call.arguments}})
             print_id = fingerprint(call.name, call.arguments)
@@ -266,7 +263,7 @@ class AgentRuntime:
             existing = self._find_call(call_id)
             if existing is not None:
                 if existing["fingerprint"] == print_id:
-                    items.append({"id": call_id, "kind": "replay"})       # повтор: не исполняем ещё раз
+                    items.append({"id": call_id, "kind": "replay"})
                 else:
                     items.append({"id": call_id, "kind": "protocol_error", "result": err(
                         "protocol_error", f"tool_call_id {call_id!r} was already used for {existing['name']} "
@@ -330,7 +327,6 @@ class AgentRuntime:
             return
         st["messages"].append({"role": "user", "content": message})
 
-    # ================================================================== задачи
     def _schedule_tasks(self) -> None:
         """Назначает следующую задачу: только после успешного завершения её зависимостей."""
         st = self.state
@@ -357,7 +353,6 @@ class AgentRuntime:
         self._save()
         self.out.checklist(st["tasks"])
 
-    # ================================================================== обработка вызовов
     def _process_batch(self) -> None:
         st = self.state
         batch = st["batch"]
@@ -379,8 +374,8 @@ class AgentRuntime:
                 continue
             if self._process_call(record) or st["status"] != "running":
                 self._save()
-                return                                       # запуск ждёт пользователя
-        for item in batch["items"]:                          # все вызовы обработаны: role=tool в исходном порядке
+                return
+        for item in batch["items"]:
             result = item["result"] if item["kind"] != "call" else self._find_call(item["id"])["result"]
             st["messages"].append({"role": "tool", "tool_call_id": item["id"], "content": dumps(result)})
         st["batch"] = None
@@ -414,7 +409,7 @@ class AgentRuntime:
             return self._finish(record, "denied", err(
                 "denied_by_user", "The user denied this action. Do not repeat it; choose another approach or finish.",
                 reason=decision.get("reason") or "no reason given"))
-        policy = self.engine.load()                          # policy перечитывается перед каждым исполнением
+        policy = self.engine.load()
         try:
             checked = self.engine.check_call(policy, spec.name, args)
         except PolicyViolation as exc:
@@ -447,7 +442,7 @@ class AgentRuntime:
     def _execute(self, record: dict, spec, checked, policy) -> bool:
         st = self.state
         budget = self._budget()
-        is_retry = bool(record["attempts"])                  # повтор = новая попытка того же tool call
+        is_retry = bool(record["attempts"])
         need = {"tool_calls": 1 if is_retry else 0, "side_effects": 1 if spec.side_effect else 0}
         shortage = budget.shortfall(**need)
         if budget.remaining("result_bytes") < MIN_RESULT_ALLOWANCE:
@@ -459,7 +454,7 @@ class AgentRuntime:
         journal = self._journal()
         pre_snapshot = None
         if spec.side_effect:
-            drift, current = journal.detect_drift(policy)    # дерево совпадает с последним известным?
+            drift, current = journal.detect_drift(policy)
             if drift:
                 record["status"] = "conflict"
                 st["status"] = "waiting"
@@ -477,12 +472,12 @@ class AgentRuntime:
         record["attempts"].append(attempt)
         record["status"] = "started"
         self._event("call_started", call_id=record["id"], tool=spec.name, attempt=attempt["n"])
-        self._save()          # ОДНА атомарная запись: списание бюджета + «вызов начался» + снимок «до»
+        self._save()
         self.faults.hit("after_tool_start", spec.name)
 
         allowance = budget.remaining("result_bytes")
         raw_result = self.executor.execute(checked, policy, allowance)
-        self.faults.hit("after_tool_execute", spec.name)    # точка отказа: выполнено, но не сохранено
+        self.faults.hit("after_tool_execute", spec.name)
 
         result, size = fit_result(raw_result, allowance)
         budget.charge("result_bytes", size)
@@ -499,12 +494,11 @@ class AgentRuntime:
         record["result"] = result
         record["finished_at"] = attempt["finished_at"]
         self._event("call_completed", call_id=record["id"], tool=spec.name, attempt=attempt["n"], result_bytes=size)
-        self._save()          # ОДНА атомарная запись: результат + журнал изменений + расход result_bytes
+        self._save()
         self.out.tool_outcome(record)
         self.faults.hit("after_result_save", spec.name)
         return False
 
-    # ================================================================== служебные инструменты
     def _submit_plan(self, record: dict, plan: dict) -> bool:
         st = self.state
         policy = self.engine.load()
@@ -554,10 +548,9 @@ class AgentRuntime:
         self._event("task_done", task_id=task_id, evidence=evidence)
         self._finish(record, "completed", {"ok": True, "task_id": task_id, "verified": True, "evidence": evidence})
         if all(t["status"] == "done" for t in st["tasks"]):
-            self.out.checklist(st["tasks"])               # промежуточные состояния печатает _schedule_tasks
+            self.out.checklist(st["tasks"])
         return False
 
-    # ================================================================== решения пользователя
     def _require_pending(self, *kinds: str) -> dict:
         pending = self.state.get("pending") or {}
         if self.state["status"] != "waiting" or pending.get("kind") not in kinds:
@@ -647,7 +640,7 @@ class AgentRuntime:
             spec = REGISTRY[record["name"]]
             policy = self.engine.load()
             journal = self._journal()
-            if kind == "recovery":                           # дерево могло измениться — сверяем заново
+            if kind == "recovery":
                 detected = journal.changes_since(policy, record["attempts"][-1]["pre_snapshot"])
             else:
                 detected, _ = journal.detect_drift(policy)
@@ -718,7 +711,6 @@ class AgentRuntime:
         self.out.stopped(self.state)
         return "aborted"
 
-    # ================================================================== журнал и откат
     def diff_report(self, run_id: str) -> dict:
         state = self.store.load(run_id)
         policy = self.engine.load()
@@ -737,14 +729,13 @@ class AgentRuntime:
                 raise UserError("the run has an uncertain call after a crash: resolve it first with "
                                 "`recover ... --changes attribute|external`; rollback is not performed until then")
             policy = self.engine.load()
-            result = self._journal().rollback(policy, self.engine)   # конфликт -> исключение, ничего не записано
+            result = self._journal().rollback(policy, self.engine)
             st["status"] = "rolled_back"
             st["pending"] = None
             self._event("rolled_back", **result)
             self._save()
         return result
 
-    # ================================================================== описание ожидания
     def pending_details(self) -> str | None:
         st = self.state
         pending = st.get("pending")

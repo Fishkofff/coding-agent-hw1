@@ -27,7 +27,7 @@ class ModelError(Exception):
 class ToolCallRequest:
     id: str
     name: str
-    arguments: str          # JSON-строка, как в OpenAI API
+    arguments: str
 
 
 @dataclass
@@ -95,7 +95,7 @@ class OpenAICompatibleModel:
 class ScriptedModel:
     def __init__(self, steps: list):
         self.steps = list(steps)
-        self.requests: list[dict] = []    # что модель «видела»: для проверок в тестах
+        self.requests: list[dict] = []
 
     @classmethod
     def from_file(cls, path) -> "ScriptedModel":

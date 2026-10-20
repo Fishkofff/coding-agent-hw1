@@ -19,11 +19,8 @@ from agent.util import utf8_len
 
 MODES = ("safe", "auto")
 
-# Bash-синтаксис, который runtime не пропускает: конвейеры, перенаправления, подстановки,
-# кавычки (bash -c '...'), глобы, фоновые задачи, комментарии, раскрытие ~ и истории.
 SHELL_METACHARS = frozenset("|&;<>()$`\\\"'*?[]{}~!#%^")
 
-# Генерируемые файлы, которые не попадают в снимки журнала (можно переопределить в policy).
 DEFAULT_JOURNAL_EXCLUDE = ("__pycache__", "*.pyc", ".pytest_cache", ".DS_Store")
 
 
@@ -93,13 +90,13 @@ POLICY_SCHEMA = {
 
 @dataclass(frozen=True)
 class Policy:
-    source: Path                 # канонический путь самого policy-файла (защищён от изменения)
+    source: Path
     workspace: Path
-    runs_dir: Path               # хранилище запусков (вне workspace, защищено)
+    runs_dir: Path
     allow_dirs: tuple
     deny_dirs: tuple
-    allow_commands: tuple        # кортежи токенов точных разрешённых команд
-    deny_commands: tuple         # кортежи токенов запрещённых последовательностей
+    allow_commands: tuple
+    deny_commands: tuple
     bash_timeout_sec: float
     bash_max_output_bytes: int
     max_read_bytes: int
@@ -244,7 +241,6 @@ class PolicyEngine:
     def load(self) -> Policy:
         return load_policy(self.policy_path)
 
-    # ---------------------------------------------------------------- пути
     def resolve_path(self, policy: Policy, rel) -> Path:
         """Относительный путь агента -> канонический путь внутри разрешённой директории."""
         if not isinstance(rel, str) or not rel.strip():
@@ -268,13 +264,12 @@ class PolicyEngine:
             raise PolicyViolation(f"{shown!r} is a protected runtime file")
         if not is_within(path, policy.workspace):
             raise PolicyViolation(f"{shown!r} is outside the workspace")
-        for denied in policy.deny_dirs:          # запрет проверяется раньше разрешения
+        for denied in policy.deny_dirs:
             if is_within(path, denied):
                 raise PolicyViolation(f"{shown!r} is inside the denied directory {policy.rel(denied)!r}")
         if not policy.is_allowed(path):
             raise PolicyViolation(f"{shown!r} is not inside an allowed directory")
 
-    # ---------------------------------------------------------------- команды
     def check_command(self, policy: Policy, command, cwd) -> tuple[tuple, Path]:
         """Команда целиком, её аргументы и рабочая директория."""
         if not isinstance(command, str) or not command.strip():
@@ -288,7 +283,7 @@ class PolicyEngine:
         tokens = tuple(command.split())
         if "=" in tokens[0]:
             raise PolicyViolation("environment variable assignments are not allowed")
-        for rule in policy.deny_commands:        # запрет сильнее разрешения
+        for rule in policy.deny_commands:
             if _contains_sequence(tokens, rule):
                 raise PolicyViolation(f"command matches deny rule {' '.join(rule)!r}")
         if tokens not in policy.allow_commands:
@@ -297,7 +292,7 @@ class PolicyEngine:
         cwd_path = self.resolve_path(policy, cwd)
         if not cwd_path.is_dir():
             raise ArgumentProblem(f"cwd {cwd!r} is not an existing directory")
-        for token in tokens:                     # пути в аргументах тоже подчиняются policy
+        for token in tokens:
             value = token.split("=", 1)[1] if token.startswith("-") and "=" in token else token
             if not value or value.startswith("-"):
                 continue
@@ -307,7 +302,6 @@ class PolicyEngine:
                 self.resolve_path(policy, os.path.relpath(os.path.join(cwd_path, value), policy.workspace))
         return tokens, cwd_path
 
-    # ---------------------------------------------------------------- инструменты
     def check_call(self, policy: Policy, tool: str, args: dict) -> CheckedCall:
         if tool == "Bash":
             tokens, cwd = self.check_command(policy, args["command"], args["cwd"])

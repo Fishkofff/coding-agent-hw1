@@ -58,7 +58,6 @@ class Journal:
             "rolled_back": None,
         }
 
-    # ---------------------------------------------------------------- снимки
     def scan(self, policy: Policy) -> dict:
         """Текущее дерево (только зона агента: разрешённые и не запрещённые директории,
         без симлинков и явно исключённых генерируемых файлов). Содержимое -> blobs."""
@@ -101,7 +100,6 @@ class Journal:
     def expected_digest(self) -> str:
         return manifest_digest(self.data["expected"])
 
-    # ---------------------------------------------------------------- сравнение
     def compare(self, old: dict, new: dict) -> list[dict]:
         changes = []
         for path in sorted(set(old) | set(new)):
@@ -149,7 +147,6 @@ class Journal:
         self.data["expected"] = post
         return entry
 
-    # ---------------------------------------------------------------- просмотр
     def _blob_text(self, digest: str | None) -> str | None:
         if digest is None:
             return ""
@@ -195,18 +192,17 @@ class Journal:
             })
         return report
 
-    # ---------------------------------------------------------------- откат
     def rollback(self, policy: Policy, engine) -> dict:
         if self.data.get("rolled_back"):
             raise RollbackError(f"run was already rolled back at {self.data['rolled_back']['at']}")
         targets = self.data["files"]
         problems, resolved = [], {}
-        for path in sorted(targets):                       # 1. policy и пути проверяются заново
+        for path in sorted(targets):
             try:
                 resolved[path] = engine.resolve_path(policy, path)
             except PolicyViolation as exc:
                 problems.append({"path": path, "reason": f"policy: {exc}"})
-        for path, info in sorted(targets.items()):         # 2. текущие хеши против последнего действия агента
+        for path, info in sorted(targets.items()):
             if path not in resolved:
                 continue
             current = self.current_sha(resolved[path])
@@ -219,7 +215,7 @@ class Journal:
         pre_name = self.save_snapshot(self.scan(policy), "pre-rollback")
         restored, deleted, untouched = [], [], []
         staged = []
-        try:                                               # 3. сначала готовим все tmp-файлы...
+        try:
             for path, info in sorted(targets.items()):
                 if info["before"] == info["after"]:
                     untouched.append(path)
@@ -235,7 +231,7 @@ class Journal:
             for tmp, _target, _path in staged:
                 tmp.unlink(missing_ok=True)
             raise
-        for tmp, target, path in staged:                   # ...потом атомарно подменяем
+        for tmp, target, path in staged:
             os.replace(tmp, target)
             restored.append(path)
         for path, info in sorted(targets.items()):

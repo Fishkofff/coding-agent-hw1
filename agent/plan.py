@@ -6,13 +6,12 @@ from agent import jsonschema
 from agent.policy import ArgumentProblem, PolicyViolation
 from agent.util import canonical_json, normalize_rel, sha256_bytes
 
-# Виды проверяемого результата задачи и их обязательные поля.
 CHECK_TYPES = {
-    "file_read": ("path",),           # в рамках задачи файл успешно прочитан read_file
-    "file_changed": ("path",),        # файл отличается от состояния на старте запуска
-    "file_unchanged": ("path",),      # файл совпадает с состоянием на старте запуска
+    "file_read": ("path",),
+    "file_changed": ("path",),
+    "file_unchanged": ("path",),
     "file_contains": ("path", "text"),
-    "command_succeeded": ("command",),  # в рамках задачи Bash-команда завершилась с кодом 0, и после неё файлы не менялись
+    "command_succeeded": ("command",),
 }
 
 CHECK_SCHEMA = {
@@ -118,8 +117,8 @@ def tasks_from_plan(plan: dict) -> list[dict]:
             "depends_on": list(step["depends_on"]),
             "tools": list(step["tools"]),
             "checks": list(step["checks"]),
-            "status": "pending",          # pending -> in_progress -> done
-            "evidence": None,             # подтверждение результата, зафиксированное runtime
+            "status": "pending",
+            "evidence": None,
             "summary": None,
             "verify_attempts": 0,
             "started_at": None,

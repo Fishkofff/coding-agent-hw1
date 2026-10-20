@@ -94,7 +94,6 @@ def interactive(runtime: AgentRuntime, run_id: str, status: str) -> str:
     return status
 
 
-# ============================================================================ команды
 def cmd_run(args) -> int:
     model, info = make_model(args)
     if model is None:
@@ -283,7 +282,6 @@ def cmd_policy_check(args) -> int:
     return 0
 
 
-# ============================================================================ argparse
 def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--policy", default=os.environ.get("AGENT_POLICY", "policy.json"),

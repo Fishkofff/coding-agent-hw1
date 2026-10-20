@@ -11,11 +11,8 @@ from agent.util import dumps, truncate_text, utf8_len
 BUDGET_KEYS = ("model_calls", "tool_calls", "side_effects", "result_bytes")
 DEFAULT_LIMITS = {"model_calls": 40, "tool_calls": 80, "side_effects": 20, "result_bytes": 300_000}
 
-# Минимальный остаток result_bytes, без которого инструмент не запускается:
-# в него гарантированно помещается служебный конверт результата с пометкой об усечении.
 MIN_RESULT_ALLOWANCE = 256
 
-# Текстовые поля результатов, которые можно обрезать.
 TEXT_FIELDS = ("stdout", "stderr", "content", "entries", "message")
 
 

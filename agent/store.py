@@ -21,7 +21,7 @@ from agent.util import atomic_write_bytes, atomic_write_json, now_iso, sha256_by
 
 try:
     import fcntl
-except ImportError:  # Windows без WSL: блокировка не поддерживается
+except ImportError:
     fcntl = None
 
 RUN_ID_RE = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{6}$")
@@ -69,7 +69,6 @@ class RunStore:
                 runs.append(self.load(directory.name))
         return runs
 
-    # ---------------------------------------------------------------- снимки
     def put_blob(self, run_id: str, data: bytes) -> str:
         digest = sha256_bytes(data)
         path = self.run_dir(run_id) / "blobs" / digest
@@ -86,7 +85,6 @@ class RunStore:
     def read_snapshot(self, run_id: str, name: str) -> dict:
         return json.loads((self.run_dir(run_id) / "snapshots" / f"{name}.json").read_text(encoding="utf-8"))
 
-    # ---------------------------------------------------------------- аудит и блокировка
     def append_event(self, run_id: str, event_name: str, **data) -> None:
         line = json.dumps({"at": now_iso(), "event": event_name, **data}, ensure_ascii=False, default=str)
         with open(self.run_dir(run_id) / "events.jsonl", "a", encoding="utf-8") as fh:
