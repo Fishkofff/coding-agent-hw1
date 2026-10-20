@@ -1,15 +1,3 @@
-"""Runtime агента: agent loop как восстанавливаемая машина состояний.
-
-Модель только ПРЕДЛАГАЕТ действия (tool calls). Решение принимает runtime, по шагам:
-    имя и фаза -> JSON-аргументы и схема -> решение пользователя -> policy (пути, команда, cwd)
-    -> режим safe/auto -> бюджет -> журнал (сверка дерева, снимок) -> исполнение.
-Каждый переход сохраняется в state.json, поэтому после падения процесса запуск продолжается по run_id.
-
-Статусы запуска: running, waiting (pending.kind: confirmation | plan_approval | recovery | conflict),
-interrupted (ошибка модели, можно resume), completed, failed, aborted, rolled_back.
-Статусы tool call: new, awaiting_confirmation, approved, started, uncertain, conflict,
-awaiting_plan_approval, completed, failed, rejected, denied.
-"""
 from __future__ import annotations
 
 import copy
@@ -37,9 +25,7 @@ MAX_NUDGES = 3
 class UserError(Exception):
     """Команда пользователя не подходит к текущему состоянию запуска."""
 
-
 def fingerprint(name: str, arguments_raw: str) -> str:
-    """Отпечаток вызова: имя + канонический JSON аргументов (для проверки повтора tool_call_id)."""
     try:
         canonical = canonical_json(json.loads(arguments_raw or "{}"))
     except ValueError:
@@ -117,7 +103,6 @@ class AgentRuntime:
         return self.state
 
     def drive(self) -> str:
-        """Главный цикл: работает, пока запуск в статусе running."""
         run_id = self.state["run_id"]
         with self.store.lock(run_id):
             self._load_locked(run_id)
@@ -178,11 +163,6 @@ class AgentRuntime:
         self._reconcile()
 
     def _reconcile(self) -> None:
-        """После перезапуска: вызов в статусе started без результата — исход неизвестен.
-
-        Чтение без побочных эффектов просто повторяется (новой попыткой). Вызов с побочным
-        эффектом НЕ запускается молча: runtime сверяет дерево со снимком «до» и ждёт решения.
-        """
         st = self.state
         if st["status"] in TERMINAL_STATUSES:
             return
@@ -245,7 +225,6 @@ class AgentRuntime:
         self._save()
 
     def _register_batch(self, response) -> None:
-        """Регистрирует все tool calls ответа. Бюджет пачки: всё или ничего."""
         st = self.state
         phase = st["phase"]
         task_id = st["current_task"] if phase == EXECUTION else None
@@ -328,7 +307,6 @@ class AgentRuntime:
         st["messages"].append({"role": "user", "content": message})
 
     def _schedule_tasks(self) -> None:
-        """Назначает следующую задачу: только после успешного завершения её зависимостей."""
         st = self.state
         if st["current_task"]:
             return
@@ -382,7 +360,6 @@ class AgentRuntime:
         self._save()
 
     def _process_call(self, record: dict) -> bool:
-        """Проверяет и исполняет один tool call. True — запуск остановлен и ждёт пользователя."""
         spec = REGISTRY.get(record["name"])
         if spec is None:
             return self._reject(record, "unknown_tool",
