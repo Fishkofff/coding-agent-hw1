@@ -8,7 +8,6 @@ version = "1.0.0"
 description = "Console coding agent with tool calling: policy, crash recovery, budgets, plan mode, tasks, change journal and rollback"
 readme = "README.md"
 requires-python = ">=3.10"
-# Агент использует только стандартную библиотеку: HTTP-клиент к OpenAI-compatible API написан на urllib.
 dependencies = []
 
 [project.optional-dependencies]
