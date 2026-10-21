@@ -1,4 +1,3 @@
-"""Минимальный валидатор JSON Schema (подмножество, нужное для аргументов инструментов и policy)."""
 from __future__ import annotations
 
 import json
@@ -22,7 +21,6 @@ def _type_name(value) -> str:
 
 
 def validate(instance, schema: dict, path: str = "$") -> list[str]:
-    """Возвращает список ошибок; пустой список — данные соответствуют схеме."""
     expected = schema.get("type")
     if expected is not None:
         types = expected if isinstance(expected, list) else [expected]
@@ -71,8 +69,6 @@ def validate(instance, schema: dict, path: str = "$") -> list[str]:
 
 
 def coerce_json_strings(value, schema: dict):
-    """Небольшие модели иногда присылают вложенный массив/объект строкой с JSON внутри.
-    Если схема ждёт array/object, а пришла строка с корректным JSON, — разбираем её."""
     expected = schema.get("type")
     if isinstance(value, str) and expected in ("array", "object"):
         try:
