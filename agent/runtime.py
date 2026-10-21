@@ -23,7 +23,7 @@ MAX_NUDGES = 3
 
 
 class UserError(Exception):
-    """Команда пользователя не подходит к текущему состоянию запуска."""
+    ""
 
 def fingerprint(name: str, arguments_raw: str) -> str:
     try:
